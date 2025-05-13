@@ -23,7 +23,7 @@ def main(resolution=256):
 
     if args.split == "train":
         datas = CC3MDataset(
-            path=f'/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-train-{args.shard}.tar',
+            path=f'/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-train-{{{args.shard}}}.tar',
             resolution=resolution
         )
         # save_dir = f'/weka/prior-default/georges/datasets/mscoco{resolution}_features/train'
