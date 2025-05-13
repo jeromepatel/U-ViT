@@ -16,14 +16,16 @@ from datasets import CC3MDataset
 def main(resolution=256):
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', default='train')
-    parser.add_argument('--shard', type=str, required=True)
+    parser.add_argument('--shard-start', type=int, required=True)
+    parser.add_argument('--shard-end', type=int, required=True)
     args = parser.parse_args()
     print(args)
 
 
     if args.split == "train":
         datas = CC3MDataset(
-            path=f'/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-train-{{{args.shard}}}.tar',
+            # path=f'/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-train-{{{args.shard}}}.tar',
+            path='/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-train-{' + f"{args.shard_start:04d}..{args.shard_end:04d}" + '}.tar',
             resolution=resolution
         )
         # save_dir = f'/weka/prior-default/georges/datasets/mscoco{resolution}_features/train'
@@ -31,7 +33,7 @@ def main(resolution=256):
         # save_dir = f'/weka/oe-training-default/georges/datasets/mscoco/uvit/mscoco{resolution}_features/train'
     elif args.split == "val":
         datas = CC3MDataset(
-            path='/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-validation-{'+ args.shard + '}.tar',
+            path='/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-validation-{' + f"{args.shard_start:04d}..{args.shard_end:04d}" + '}.tar',
             resolution=resolution
         )
         # save_dir = f'/weka/prior-default/georgdes/datasets/mscoco{resolution}_features/val'
