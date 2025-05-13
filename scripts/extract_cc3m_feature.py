@@ -31,7 +31,7 @@ def main(resolution=256):
         # save_dir = f'/weka/oe-training-default/georges/datasets/mscoco/uvit/mscoco{resolution}_features/train'
     elif args.split == "val":
         datas = CC3MDataset(
-            path=f'/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-validation-{args.shard}.tar',
+            path='/weka/oe-data-default/georges/datasets/cc3m-wds/cc3m-validation-{'+ args.shard + '}.tar',
             resolution=resolution
         )
         # save_dir = f'/weka/prior-default/georgdes/datasets/mscoco{resolution}_features/val'
