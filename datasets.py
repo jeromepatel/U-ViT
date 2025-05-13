@@ -1,5 +1,6 @@
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 from torchvision import datasets
+import webdataset as wds
 import torchvision.transforms as transforms
 import numpy as np
 import torch
@@ -10,6 +11,8 @@ import os
 import glob
 import einops
 import torchvision.transforms.functional as F
+
+from webdataset.shardlists import expand_urls
 
 
 class UnlabeledDataset(Dataset):
@@ -451,10 +454,10 @@ class MSCOCODatabase(Dataset):
 
     def __getitem__(self, index):
         key = self.keys[index]
-        image = self._load_image(key)
-        image = np.array(image).astype(np.uint8)
-        image = center_crop(self.width, self.height, image).astype(np.float32)
-        image = (image / 127.5 - 1.0).astype(np.float32)
+        raw_image = self._load_image(key)
+        raw_image = np.array(raw_image).astype(np.uint8)
+        raw_image = center_crop(self.width, self.height, raw_image).astype(np.float32)
+        image = (raw_image / 127.5 - 1.0).astype(np.float32)
         image = einops.rearrange(image, 'h w c -> c h w')
 
         anns = self._load_target(key)
@@ -462,8 +465,29 @@ class MSCOCODatabase(Dataset):
         for ann in anns:
             target.append(ann['caption'])
 
-        return image, target
+        return raw_image, image, target
 
+
+class CC3MDataset(IterableDataset):
+    def __init__(self, path, resolution=256):
+        import webdataset as wds
+    
+        super().__init__()
+        self.resolution = resolution
+        self.dataset = wds.WebDataset(path).decode("pil").rename(image="jpg", caption="txt")
+
+    def __iter__(self):
+        for sample in self.dataset:
+            raw_image = sample["image"]
+            raw_image = raw_image.convert("RGB")
+
+            raw_image = np.array(raw_image).astype(np.uint8)
+            raw_image = center_crop(self.resolution, self.resolution, raw_image).astype(np.float32)
+            image = (raw_image / 127.5 - 1.0).astype(np.float32)
+            image = einops.rearrange(image, 'h w c -> c h w')
+
+            caption = sample["caption"]
+            yield raw_image, image, caption, sample["__key__"]
 
 def get_feature_dir_info(root):
     files = glob.glob(os.path.join(root, '*.npy'))
@@ -514,7 +538,10 @@ class MSCOCO256Features(DatasetFactory):  # the moments calculated by Stable Dif
         # for visulization in t2i
         self.prompts, self.contexts = [], []
         for f in sorted(os.listdir(os.path.join(path, 'run_vis')), key=lambda x: int(x.split('.')[0])):
-            prompt, context = np.load(os.path.join(path, 'run_vis', f), allow_pickle=True)
+            # NOTE: Changed these lines via: https://github.com/baofff/U-ViT/issues/19
+            # prompt, context = np.load(os.path.join(path, 'run_vis', f), allow_pickle=True)
+            _data = np.load(os.path.join(path, 'run_vis', f), allow_pickle=True)
+            prompt, context = _data['prompt'], _data['context']
             self.prompts.append(prompt)
             self.contexts.append(context)
         self.contexts = np.array(self.contexts)
