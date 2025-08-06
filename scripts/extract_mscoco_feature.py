@@ -17,6 +17,8 @@ import numpy as np
 import libs.autoencoder
 import libs.siglip2
 import libs.stability_encoder
+from numpy import einsum
+
 from utils import load_encoders
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from torchvision.transforms import Normalize
@@ -31,6 +33,8 @@ spec = importlib.util.spec_from_file_location("local_datasets", datasets_path)
 local_datasets = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(local_datasets)
 MSCOCODatabase = local_datasets.MSCOCODatabase
+
+debug = False
 
 def preprocess_raw_image(x, enc_type, resolution=256):
     if 'clip' in enc_type:
@@ -134,11 +138,51 @@ def main(resolution=256):
                     moments = autoencoder.encode_moments(x)
                     if moments.dim() > 3:
                         moments = moments.squeeze(0)
-
+                # print(f"moments shape: {moments.shape}, type: {type(moments)}")
+                # print(f"raw image shape: {raw_img.shape}, type: {type(raw_img)}")
                 # save image latent
-                np.save(os.path.join(save_dir, f'{idx}.npy'),
-                        moments.detach().cpu().numpy())
+                # np.save(os.path.join(save_dir, f'{idx}.npy'),
+                #         moments.detach().cpu().numpy())
                 # save original image dinov2 features
+                #temp save raw image and reconstructed image to a file  
+                if debug:
+                    temp_save_path = '/export/data/jmakadiy/temp_raw_reconstructed'
+                    os.makedirs(temp_save_path, exist_ok=True)
+                    raw_img_save_path = os.path.join(temp_save_path, f'{idx}_raw.png')
+                    #convert to PIL image and save
+                    if isinstance(raw_img, np.ndarray):
+                        # change from CHW to HWC
+                        raw_img = np.transpose(raw_img, (1, 2, 0))
+                    elif isinstance(raw_img, torch.Tensor):
+                        # change from CHW to HWC and move to CPU
+                        raw_img = raw_img.cpu().permute(1, 2, 0).numpy()
+                    # now raw_img is H x W x C and can be cast to uint8
+                    raw_img = Image.fromarray(raw_img.astype(np.uint8)).convert('RGB')
+                    reconstructed_img_save_path = os.path.join(temp_save_path, f'{idx}_reconstructed.png')
+
+                    # Save raw image
+                    raw_img.save(raw_img_save_path)
+                    if args.encoder_type == 'stability':
+                        moments = moments.unsqueeze(0)  # Ensure batch dimension is present
+                        mean, logvar = torch.chunk(moments, 2, dim=1)
+                        print(f"mean shape: {mean.shape}, logvar shape: {logvar.shape}")
+                        logvar = torch.clamp(logvar, -30.0, 20.0)
+                        std = torch.exp(0.5 * logvar)
+                        z = (mean + std * torch.randn_like(mean))
+                        print(f"z shape: {z.shape}, type: {type(z)}")
+                        reconstructed_img = autoencoder.decode(z)
+                        if isinstance(reconstructed_img, torch.Tensor):
+                            reconstructed_img = reconstructed_img.squeeze(0).cpu().numpy()
+                        #reconstruct the image and save it
+                        reconstructed_img = np.transpose(reconstructed_img, (1, 2, 0))
+                        reconstructed_img = (reconstructed_img + 1.0) / 2.0
+                        reconstructed_img = Image.fromarray((reconstructed_img * 255).astype(np.uint8)).convert('RGB')
+                        reconstructed_img.save(reconstructed_img_save_path)
+
+                    if idx == 5:
+                        break
+                    else:
+                        continue
 
                 if isinstance(raw_img, np.ndarray):
                     raw_img = torch.from_numpy(raw_img).float()
@@ -167,6 +211,7 @@ def main(resolution=256):
                     np.save(os.path.join(save_dir, f'{idx}_{i}.npy'),
                             c_tensor.detach().cpu().numpy())
             except Exception as e:
+
                 print(f"Error processing sample {idx}: {e}")
                 continue
 

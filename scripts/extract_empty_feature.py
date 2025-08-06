@@ -33,7 +33,7 @@ def main():
     clip.eval()
     clip.to(device)
 
-    save_dir = f'/export/data/vislearn/rother_subgroup/jmakadiy/coco256_features'
+    save_dir = f'/localscratch/jmakadiy/coco256_features'
     latent = clip.encode(prompts)
     print(latent.shape)
     c = latent[0].detach().cpu().numpy()

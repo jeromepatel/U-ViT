@@ -62,9 +62,22 @@ class StabilityVAEEncoder(Encoder):
         d = self._vae.encode(x)['latent_dist']
         # Concatenate mean and std for downstream tasks, ensure float32
         mean = d.mean.to(torch.float32)
-        std = d.std.to(torch.float32)
-        return torch.cat([mean, std], dim=1)
+        logvar = d.logvar.to(torch.float32)
+        return torch.cat([mean, logvar], dim=1)
 
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        """Decode latent tensor back to pixel space."""
+        self.init(z.device)
+        # Ensure z is float32 and has the correct shape
+        z = z.to(torch.float32)
+        if z.dim() == 1:
+            z = z.unsqueeze(0)
+        # Decode the latent representation
+        d = self._vae.decode(z)
+        if isinstance(d, dict):
+            d = d['sample']
+        # Ensure output is in float32
+        return d.to(torch.float32)
 #----------------------------------------------------------------------------
 
 def load_stability_ema_vae(
