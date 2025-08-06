@@ -141,8 +141,8 @@ def main(resolution=256):
                 # print(f"moments shape: {moments.shape}, type: {type(moments)}")
                 # print(f"raw image shape: {raw_img.shape}, type: {type(raw_img)}")
                 # save image latent
-                # np.save(os.path.join(save_dir, f'{idx}.npy'),
-                #         moments.detach().cpu().numpy())
+                np.save(os.path.join(save_dir, f'{idx}.npy'),
+                        moments.detach().cpu().numpy())
                 # save original image dinov2 features
                 #temp save raw image and reconstructed image to a file  
                 if debug:
